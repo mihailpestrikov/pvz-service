@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./cmd/api/Dockerfile
+    ports:
+      - "8080:8080"
+
+  grpc:
+    build:
+      context: .
+      dockerfile: ./cmd/grpc/Dockerfile
+    ports:
+      - "3000:3000"
