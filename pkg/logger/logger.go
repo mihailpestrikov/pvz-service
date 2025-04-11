@@ -29,7 +29,7 @@ func Setup(cfg config.LoggerConfig) {
 	}
 
 	var writer = output
-	if cfg.Format == "pretty" {
+	if cfg.Format == "console" {
 		writer = zerolog.ConsoleWriter{
 			Out:        output,
 			TimeFormat: time.RFC3339,
