@@ -1,0 +1,70 @@
+services:
+  api:
+    container_name: pvz_api
+    build:
+      context: .
+      dockerfile: ./cmd/api/Dockerfile
+    ports:
+      - "8080:8080"
+      - "9000:9000"
+    depends_on:
+      - postgres
+    networks:
+      - internal
+
+#  grpc:
+#    container_name: pvz_grpc
+#    build:
+#      context: .
+#      dockerfile: ./cmd/grpc/Dockerfile
+#    ports:
+#      - "3000:3000"
+#    depends_on:
+#      - postgres
+#    networks:
+#        - internal
+
+  prometheus:
+    container_name: pvz_prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - internal
+    restart: unless-stopped
+
+  postgres:
+    container_name: pvz_postgres
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: production_password
+      POSTGRES_DB: pvz_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U postgres -d pvz_db'" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+volumes:
+  pg_data:
+  prometheus_data:
+networks:
+  internal:
