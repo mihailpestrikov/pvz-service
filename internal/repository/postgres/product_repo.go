@@ -34,28 +34,24 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for product creation")
 		return fmt.Errorf("failed to build SQL query: %w", err)
 	}
 
 	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
 	if err != nil {
-		log.Error().Err(err).
-			Str("type", product.Type).
-			Str("reception_id", product.ReceptionID.String()).
-			Msg("Failed to create product")
-
 		if isDuplicateKeyError(err) {
 			return repoerrors.ErrProductAlreadyExists
 		}
 
+		log.Error().Err(err).
+			Str("product_id", product.ID.String()).
+			Str("type", product.Type).
+			Str("reception_id", product.ReceptionID.String()).
+			Msg("Database error during product creation")
+
 		return fmt.Errorf("failed to create product: %w", err)
 	}
-
-	log.Info().
-		Str("id", product.ID.String()).
-		Str("type", product.Type).
-		Str("reception_id", product.ReceptionID.String()).
-		Msg("Product created successfully")
 
 	metrics.ProductsAddedTotal.Inc()
 
@@ -69,6 +65,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for product retrieval")
 		return nil, fmt.Errorf("failed to build SQL query: %w", err)
 	}
 
@@ -86,6 +83,10 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repoerrors.ErrProductNotFound
 		}
+
+		log.Error().Err(err).
+			Str("product_id", id.String()).
+			Msg("Database error while scanning product row")
 		return nil, fmt.Errorf("failed to get product by ID: %w", err)
 	}
 
@@ -102,6 +103,7 @@ func (r *ProductRepository) DeleteLastFromReception(ctx context.Context, recepti
 
 		sqlQuery, args, err := query.ToSql()
 		if err != nil {
+			log.Error().Err(err).Msg("Failed to build SQL query for retrieving last product")
 			return fmt.Errorf("failed to build SQL query: %w", err)
 		}
 
@@ -111,6 +113,10 @@ func (r *ProductRepository) DeleteLastFromReception(ctx context.Context, recepti
 			if errors.Is(err, sql.ErrNoRows) {
 				return repoerrors.ErrProductNotFound
 			}
+
+			log.Error().Err(err).
+				Str("reception_id", receptionID.String()).
+				Msg("Database error while retrieving last product")
 			return fmt.Errorf("failed to get last product from reception: %w", err)
 		}
 
@@ -119,18 +125,17 @@ func (r *ProductRepository) DeleteLastFromReception(ctx context.Context, recepti
 
 		sqlQuery, args, err = deleteQuery.ToSql()
 		if err != nil {
+			log.Error().Err(err).Msg("Failed to build SQL query for product deletion")
 			return fmt.Errorf("failed to build SQL query: %w", err)
 		}
 
 		_, err = tx.ExecContext(ctx, sqlQuery, args...)
 		if err != nil {
+			log.Error().Err(err).
+				Str("product_id", productID.String()).
+				Msg("Database error while deleting product")
 			return fmt.Errorf("failed to delete last product: %w", err)
 		}
-
-		log.Info().
-			Str("product_id", productID.String()).
-			Str("reception_id", receptionID.String()).
-			Msg("Last product deleted successfully")
 
 		return nil
 	})
@@ -144,11 +149,15 @@ func (r *ProductRepository) GetByReceptionID(ctx context.Context, receptionID uu
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for product retrieval by reception ID")
 		return nil, fmt.Errorf("failed to build SQL query: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
+		log.Error().Err(err).
+			Str("reception_id", receptionID.String()).
+			Msg("Database error while querying products by reception ID")
 		return nil, fmt.Errorf("failed to query products: %w", err)
 	}
 	defer rows.Close()
@@ -163,12 +172,18 @@ func (r *ProductRepository) GetByReceptionID(ctx context.Context, receptionID uu
 			&product.ReceptionID,
 		)
 		if err != nil {
+			log.Error().Err(err).
+				Str("reception_id", receptionID.String()).
+				Msg("Database error while scanning product row")
 			return nil, fmt.Errorf("failed to scan product row: %w", err)
 		}
 		products = append(products, product)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Error().Err(err).
+			Str("reception_id", receptionID.String()).
+			Msg("Error while iterating product rows")
 		return nil, fmt.Errorf("error iterating through product rows: %w", err)
 	}
 

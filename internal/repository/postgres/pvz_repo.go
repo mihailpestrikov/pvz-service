@@ -33,27 +33,23 @@ func (r *PVZRepository) Create(ctx context.Context, pvz *models.PVZ) error {
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for PVZ creation")
 		return fmt.Errorf("failed to build SQL query: %w", err)
 	}
 
 	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
 	if err != nil {
-		log.Error().Err(err).
-			Str("city", pvz.City).
-			Msg("Failed to create PVZ")
-
 		if isDuplicateKeyError(err) {
 			return repoerrors.ErrPVZAlreadyExists
 		}
 
+		log.Error().Err(err).
+			Str("pvz_id", pvz.ID.String()).
+			Str("city", pvz.City).
+			Msg("Database error during PVZ creation")
+
 		return fmt.Errorf("failed to create PVZ: %w", err)
 	}
-
-	log.Info().
-		Str("id", pvz.ID.String()).
-		Str("city", pvz.City).
-		Time("registration_date", pvz.RegistrationDate).
-		Msg("PVZ created successfully")
 
 	metrics.PVZCreatedTotal.Inc()
 
@@ -67,6 +63,7 @@ func (r *PVZRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.PVZ,
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for PVZ retrieval")
 		return nil, fmt.Errorf("failed to build SQL query: %w", err)
 	}
 
@@ -83,6 +80,10 @@ func (r *PVZRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.PVZ,
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repoerrors.ErrPVZNotFound
 		}
+
+		log.Error().Err(err).
+			Str("pvz_id", id.String()).
+			Msg("Database error while scanning PVZ row")
 		return nil, fmt.Errorf("failed to get PVZ by ID: %w", err)
 	}
 
@@ -112,12 +113,14 @@ func (r *PVZRepository) GetAll(ctx context.Context, filter models.PVZFilter) ([]
 
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build count SQL query for PVZ list")
 		return nil, 0, fmt.Errorf("failed to build count SQL query: %w", err)
 	}
 
 	var total int
 	err = r.db.QueryRowContext(ctx, countSql, countArgs...).Scan(&total)
 	if err != nil {
+		log.Error().Err(err).Msg("Database error while counting PVZs")
 		return nil, 0, fmt.Errorf("failed to count PVZs: %w", err)
 	}
 
@@ -134,11 +137,13 @@ func (r *PVZRepository) GetAll(ctx context.Context, filter models.PVZFilter) ([]
 
 	sqlQuery, args, err := selectQuery.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for PVZ list")
 		return nil, 0, fmt.Errorf("failed to build SQL query: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
+		log.Error().Err(err).Msg("Database error while querying PVZs")
 		return nil, 0, fmt.Errorf("failed to query PVZs: %w", err)
 	}
 	defer rows.Close()
@@ -152,12 +157,14 @@ func (r *PVZRepository) GetAll(ctx context.Context, filter models.PVZFilter) ([]
 			&pvz.City,
 		)
 		if err != nil {
+			log.Error().Err(err).Msg("Database error while scanning PVZ row")
 			return nil, 0, fmt.Errorf("failed to scan PVZ row: %w", err)
 		}
 		pvzs = append(pvzs, pvz)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Error().Err(err).Msg("Error while iterating PVZ rows")
 		return nil, 0, fmt.Errorf("error iterating through PVZ rows: %w", err)
 	}
 
@@ -197,11 +204,13 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 
 	receptionSQL, receptionArgs, err := receptionQuery.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for receptions")
 		return nil, 0, fmt.Errorf("failed to build receptions SQL query: %w", err)
 	}
 
 	receptionRows, err := r.db.QueryContext(ctx, receptionSQL, receptionArgs...)
 	if err != nil {
+		log.Error().Err(err).Msg("Database error while querying receptions")
 		return nil, 0, fmt.Errorf("failed to query receptions: %w", err)
 	}
 	defer receptionRows.Close()
@@ -217,6 +226,7 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 			&reception.Status,
 		)
 		if err != nil {
+			log.Error().Err(err).Msg("Database error while scanning reception row")
 			return nil, 0, fmt.Errorf("failed to scan reception row: %w", err)
 		}
 
@@ -224,6 +234,7 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 	}
 
 	if err = receptionRows.Err(); err != nil {
+		log.Error().Err(err).Msg("Error while iterating reception rows")
 		return nil, 0, fmt.Errorf("error iterating through reception rows: %w", err)
 	}
 
@@ -256,11 +267,13 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 
 	productSQL, productArgs, err := productQuery.ToSql()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for products")
 		return nil, 0, fmt.Errorf("failed to build products SQL query: %w", err)
 	}
 
 	productRows, err := r.db.QueryContext(ctx, productSQL, productArgs...)
 	if err != nil {
+		log.Error().Err(err).Msg("Database error while querying products")
 		return nil, 0, fmt.Errorf("failed to query products: %w", err)
 	}
 	defer productRows.Close()
@@ -276,6 +289,7 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 			&product.ReceptionID,
 		)
 		if err != nil {
+			log.Error().Err(err).Msg("Database error while scanning product row")
 			return nil, 0, fmt.Errorf("failed to scan product row: %w", err)
 		}
 
@@ -283,6 +297,7 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 	}
 
 	if err = productRows.Err(); err != nil {
+		log.Error().Err(err).Msg("Error while iterating product rows")
 		return nil, 0, fmt.Errorf("error iterating through product rows: %w", err)
 	}
 
