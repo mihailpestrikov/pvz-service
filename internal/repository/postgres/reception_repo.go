@@ -1,7 +1,7 @@
 package postgres
 
 import (
-	"avito-backend-trainee-assignment-spring-2025/internal/domain/services"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"context"
 	"database/sql"
@@ -124,7 +124,7 @@ func (r *ReceptionRepository) GetLastActiveByPVZID(ctx context.Context, pvzID uu
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, services.ErrNoActiveReception
+			return nil, apperrors.ErrNoActiveReception
 		}
 		return nil, fmt.Errorf("failed to get active reception for PVZ: %w", err)
 	}
@@ -146,7 +146,7 @@ func (r *ReceptionRepository) CloseReception(ctx context.Context, id uuid.UUID) 
 	}
 
 	if reception.Status == models.ReceptionStatusClosed {
-		return models.ErrReceptionAlreadyClosed
+		return apperrors.ErrReceptionAlreadyClosed
 	}
 
 	query := r.sb.Update("reception").
