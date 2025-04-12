@@ -1,0 +1,175 @@
+package postgres
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
+
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
+	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
+)
+
+type ProductRepository struct {
+	db *DB
+	sb squirrel.StatementBuilderType
+}
+
+func NewProductRepository(db *DB) *ProductRepository {
+	return &ProductRepository{
+		db: db,
+		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+}
+
+func (r *ProductRepository) Create(ctx context.Context, product *models.Product) error {
+	query := r.sb.Insert("product").
+		Columns("id", "date_time", "type", "reception_id").
+		Values(product.ID, product.DateTime, product.Type, product.ReceptionID)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("failed to build SQL query: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		log.Error().Err(err).
+			Str("type", product.Type).
+			Str("reception_id", product.ReceptionID.String()).
+			Msg("Failed to create product")
+
+		if isDuplicateKeyError(err) {
+			return models.ErrProductAlreadyExists
+		}
+
+		return fmt.Errorf("failed to create product: %w", err)
+	}
+
+	log.Info().
+		Str("id", product.ID.String()).
+		Str("type", product.Type).
+		Str("reception_id", product.ReceptionID.String()).
+		Msg("Product created successfully")
+
+	metrics.ProductsAddedTotal.Inc()
+
+	return nil
+}
+
+func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
+	query := r.sb.Select("id", "date_time", "type", "reception_id").
+		From("product").
+		Where(squirrel.Eq{"id": id})
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build SQL query: %w", err)
+	}
+
+	row := r.db.QueryRowContext(ctx, sqlQuery, args...)
+
+	product := &models.Product{}
+	err = row.Scan(
+		&product.ID,
+		&product.DateTime,
+		&product.Type,
+		&product.ReceptionID,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, models.ErrProductNotFound
+		}
+		return nil, fmt.Errorf("failed to get product by ID: %w", err)
+	}
+
+	return product, nil
+}
+
+func (r *ProductRepository) DeleteLastFromReception(ctx context.Context, receptionID uuid.UUID) error {
+	return r.db.Transaction(ctx, func(tx *sql.Tx) error {
+		query := r.sb.Select("id").
+			From("product").
+			Where(squirrel.Eq{"reception_id": receptionID}).
+			OrderBy("date_time DESC").
+			Limit(1)
+
+		sqlQuery, args, err := query.ToSql()
+		if err != nil {
+			return fmt.Errorf("failed to build SQL query: %w", err)
+		}
+
+		var productID uuid.UUID
+		err = tx.QueryRowContext(ctx, sqlQuery, args...).Scan(&productID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return models.ErrProductNotFound
+			}
+			return fmt.Errorf("failed to get last product from reception: %w", err)
+		}
+
+		deleteQuery := r.sb.Delete("product").
+			Where(squirrel.Eq{"id": productID})
+
+		sqlQuery, args, err = deleteQuery.ToSql()
+		if err != nil {
+			return fmt.Errorf("failed to build SQL query: %w", err)
+		}
+
+		_, err = tx.ExecContext(ctx, sqlQuery, args...)
+		if err != nil {
+			return fmt.Errorf("failed to delete last product: %w", err)
+		}
+
+		log.Info().
+			Str("product_id", productID.String()).
+			Str("reception_id", receptionID.String()).
+			Msg("Last product deleted successfully")
+
+		return nil
+	})
+}
+
+func (r *ProductRepository) GetByReceptionID(ctx context.Context, receptionID uuid.UUID) ([]models.Product, error) {
+	query := r.sb.Select("id", "date_time", "type", "reception_id").
+		From("product").
+		Where(squirrel.Eq{"reception_id": receptionID}).
+		OrderBy("date_time ASC")
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build SQL query: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query products: %w", err)
+	}
+	defer rows.Close()
+
+	var products []models.Product
+	for rows.Next() {
+		var product models.Product
+		err := rows.Scan(
+			&product.ID,
+			&product.DateTime,
+			&product.Type,
+			&product.ReceptionID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan product row: %w", err)
+		}
+		products = append(products, product)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating through product rows: %w", err)
+	}
+
+	return products, nil
+}
