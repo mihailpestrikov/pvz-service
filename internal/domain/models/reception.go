@@ -1,7 +1,7 @@
 package models
 
 import (
-	"errors"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +22,7 @@ type Reception struct {
 
 func NewReception(pvzID uuid.UUID) (*Reception, error) {
 	if pvzID == uuid.Nil {
-		return nil, errors.New("pickup point ID is required")
+		return nil, apperrors.ErrInvalidPVZID
 	}
 
 	return &Reception{
