@@ -1,7 +1,7 @@
 package models
 
 import (
-	"errors"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,14 +14,6 @@ const (
 )
 
 var AllowedCities = []string{CityMoscow, CitySaintPete, CityKazan}
-
-var (
-	ErrPVZNotFound      = errors.New("pickup point not found")
-	ErrCityRequired     = errors.New("city is a required field")
-	ErrInvalidCity      = errors.New("invalid city, only Moscow, St. Petersburg and Kazan are allowed")
-	ErrPVZAlreadyExists = errors.New("pickup point with this ID already exists")
-	ErrInvalidPVZID     = errors.New("invalid pickup point ID")
-)
 
 type PVZ struct {
 	ID               uuid.UUID `json:"id"`
@@ -36,7 +28,7 @@ type PVZWithReceptions struct {
 
 func NewPVZ(city string) (*PVZ, error) {
 	if city == "" {
-		return nil, ErrCityRequired
+		return nil, apperrors.ErrCityRequired
 	}
 
 	validCity := false
@@ -48,7 +40,7 @@ func NewPVZ(city string) (*PVZ, error) {
 	}
 
 	if !validCity {
-		return nil, ErrInvalidCity
+		return nil, apperrors.ErrInvalidCity
 	}
 
 	return &PVZ{

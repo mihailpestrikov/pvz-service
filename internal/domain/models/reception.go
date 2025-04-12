@@ -12,16 +12,6 @@ const (
 	ReceptionStatusClosed     = "close"
 )
 
-var (
-	ErrReceptionNotFound         = errors.New("reception not found")
-	ErrReceptionAlreadyExists    = errors.New("reception with this ID already exists")
-	ErrReceptionAlreadyClosed    = errors.New("reception is already closed")
-	ErrNoActiveReception         = errors.New("no active reception")
-	ErrActiveReceptionExists     = errors.New("cannot create a new reception while previous one is not closed")
-	ErrInvalidReceptionID        = errors.New("invalid reception ID")
-	ErrReceptionCannotBeModified = errors.New("closed reception cannot be modified")
-)
-
 type Reception struct {
 	ID       uuid.UUID `json:"id"`
 	DateTime time.Time `json:"dateTime"`

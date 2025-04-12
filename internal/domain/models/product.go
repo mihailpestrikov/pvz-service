@@ -1,13 +1,12 @@
 package models
 
 import (
-	"errors"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// Типы товаров
 const (
 	ProductTypeElectronics = "электроника"
 	ProductTypeClothes     = "одежда"
@@ -20,14 +19,6 @@ var AllowedProductTypes = []string{
 	ProductTypeShoes,
 }
 
-var (
-	ErrProductNotFound      = errors.New("product not found")
-	ErrProductTypeRequired  = errors.New("product type is required")
-	ErrInvalidProductType   = errors.New("invalid product type, only electronics, clothes and shoes are allowed")
-	ErrProductAlreadyExists = errors.New("product with this ID already exists")
-	ErrInvalidProductID     = errors.New("invalid product ID")
-)
-
 type Product struct {
 	ID          uuid.UUID `json:"id"`
 	DateTime    time.Time `json:"dateTime"`
@@ -37,7 +28,7 @@ type Product struct {
 
 func NewProduct(productType string, receptionID uuid.UUID) (*Product, error) {
 	if productType == "" {
-		return nil, ErrProductTypeRequired
+		return nil, apperrors.ErrProductTypeRequired
 	}
 
 	validType := false
@@ -49,11 +40,11 @@ func NewProduct(productType string, receptionID uuid.UUID) (*Product, error) {
 	}
 
 	if !validType {
-		return nil, ErrInvalidProductType
+		return nil, apperrors.ErrInvalidProductType
 	}
 
 	if receptionID == uuid.Nil {
-		return nil, ErrInvalidReceptionID
+		return nil, apperrors.ErrInvalidReceptionID
 	}
 
 	return &Product{

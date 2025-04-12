@@ -1,6 +1,7 @@
 package services
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 	"context"
 	"github.com/google/uuid"
@@ -25,7 +26,7 @@ func NewPVZService(repo PVZRepository) *PVZService {
 
 func (s *PVZService) CreatePVZ(ctx context.Context, city string) (*models.PVZ, error) {
 	if !models.IsValidCity(city) {
-		return nil, models.ErrInvalidCity
+		return nil, apperrors.ErrInvalidCity
 	}
 
 	pvz, err := models.NewPVZ(city)

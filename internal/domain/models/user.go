@@ -1,8 +1,8 @@
 package models
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/pkg/hasher"
-	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -13,17 +13,6 @@ import (
 const (
 	RoleEmployee  = "employee"
 	RoleModerator = "moderator"
-)
-
-var (
-	ErrEmailRequired      = errors.New("email is required")
-	ErrInvalidEmail       = errors.New("invalid email format")
-	ErrPasswordRequired   = errors.New("password is required")
-	ErrInvalidPassword    = errors.New("password must be at least 6 characters long")
-	ErrInvalidRole        = errors.New("invalid role, must be 'employee' or 'moderator'")
-	ErrUserAlreadyExists  = errors.New("user with this email already exists")
-	ErrUserNotFound       = errors.New("user not found")
-	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
 type User struct {
@@ -42,24 +31,24 @@ type UserCredentials struct {
 
 func NewUser(email, password, role string) (*User, error) {
 	if email == "" {
-		return nil, ErrEmailRequired
+		return nil, apperrors.ErrEmailRequired
 	}
 
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(email) {
-		return nil, ErrInvalidEmail
+		return nil, apperrors.ErrInvalidEmail
 	}
 
 	if password == "" {
-		return nil, ErrPasswordRequired
+		return nil, apperrors.ErrPasswordRequired
 	}
 
 	if len(password) < 6 {
-		return nil, ErrInvalidPassword
+		return nil, apperrors.ErrInvalidPassword
 	}
 
 	if role != RoleEmployee && role != RoleModerator {
-		return nil, ErrInvalidRole
+		return nil, apperrors.ErrInvalidRole
 	}
 
 	passwordHash, err := hasher.Hash(password)

@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"context"
 	"database/sql"
 	"errors"
@@ -42,7 +43,7 @@ func (r *PVZRepository) Create(ctx context.Context, pvz *models.PVZ) error {
 			Msg("Failed to create PVZ")
 
 		if isDuplicateKeyError(err) {
-			return models.ErrPVZAlreadyExists
+			return repoerrors.ErrPVZAlreadyExists
 		}
 
 		return fmt.Errorf("failed to create PVZ: %w", err)
@@ -80,7 +81,7 @@ func (r *PVZRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.PVZ,
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrPVZNotFound
+			return nil, repoerrors.ErrPVZNotFound
 		}
 		return nil, fmt.Errorf("failed to get PVZ by ID: %w", err)
 	}

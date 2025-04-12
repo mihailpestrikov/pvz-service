@@ -1,6 +1,7 @@
 package services
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 	"context"
 	"github.com/google/uuid"
@@ -27,7 +28,7 @@ func NewProductService(productRepo ProductRepository, receptionRepo ReceptionRep
 
 func (s *ProductService) AddProduct(ctx context.Context, productType string, pvzID uuid.UUID) (*models.Product, error) {
 	if !models.IsValidProductType(productType) {
-		return nil, models.ErrInvalidProductType
+		return nil, apperrors.ErrInvalidProductType
 	}
 
 	reception, err := s.receptionRepo.GetLastActiveByPVZID(ctx, pvzID)
@@ -36,7 +37,7 @@ func (s *ProductService) AddProduct(ctx context.Context, productType string, pvz
 	}
 
 	if !reception.IsInProgress() {
-		return nil, models.ErrReceptionCannotBeModified
+		return nil, apperrors.ErrReceptionCannotBeModified
 	}
 
 	product, err := models.NewProduct(productType, reception.ID)
@@ -66,7 +67,7 @@ func (s *ProductService) DeleteLastProduct(ctx context.Context, pvzID uuid.UUID)
 	}
 
 	if !reception.IsInProgress() {
-		return models.ErrReceptionCannotBeModified
+		return apperrors.ErrReceptionCannotBeModified
 	}
 
 	products, err := s.productRepo.GetByReceptionID(ctx, reception.ID)
@@ -75,7 +76,7 @@ func (s *ProductService) DeleteLastProduct(ctx context.Context, pvzID uuid.UUID)
 	}
 
 	if len(products) == 0 {
-		return models.ErrProductNotFound
+		return apperrors.ErrProductNotFound
 	}
 
 	return s.productRepo.DeleteLastFromReception(ctx, reception.ID)

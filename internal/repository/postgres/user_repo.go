@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"context"
 	"database/sql"
 	"errors"
@@ -43,7 +44,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 			Msg("Failed to create user")
 
 		if isDuplicateKeyError(err) {
-			return models.ErrUserAlreadyExists
+			return repoerrors.ErrUserAlreadyExists
 		}
 
 		return fmt.Errorf("failed to create user: %w", err)
@@ -80,7 +81,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrUserNotFound
+			return nil, repoerrors.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
@@ -110,7 +111,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrUserNotFound
+			return nil, repoerrors.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
@@ -138,7 +139,7 @@ func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	if rowsAffected == 0 {
-		return models.ErrUserNotFound
+		return repoerrors.ErrUserNotFound
 	}
 
 	log.Info().

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 	"context"
 	"errors"
@@ -35,9 +36,9 @@ func (s *ReceptionService) CreateReception(ctx context.Context, pvzID uuid.UUID)
 
 	_, err = s.receptionRepo.GetLastActiveByPVZID(ctx, pvzID)
 	if err == nil {
-		return nil, models.ErrActiveReceptionExists
+		return nil, apperrors.ErrActiveReceptionExists
 	}
-	if !errors.Is(err, models.ErrNoActiveReception) {
+	if !errors.Is(err, apperrors.ErrNoActiveReception) {
 		return nil, err
 	}
 

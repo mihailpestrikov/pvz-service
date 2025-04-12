@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/services"
+	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"context"
 	"database/sql"
 	"errors"
@@ -44,7 +46,7 @@ func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Rece
 			Msg("Failed to create reception")
 
 		if isDuplicateKeyError(err) {
-			return models.ErrReceptionAlreadyExists
+			return repoerrors.ErrReceptionAlreadyExists
 		}
 
 		return fmt.Errorf("failed to create reception: %w", err)
@@ -83,7 +85,7 @@ func (r *ReceptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*model
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrReceptionNotFound
+			return nil, repoerrors.ErrReceptionNotFound
 		}
 		return nil, fmt.Errorf("failed to get reception by ID: %w", err)
 	}
@@ -122,7 +124,7 @@ func (r *ReceptionRepository) GetLastActiveByPVZID(ctx context.Context, pvzID uu
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrNoActiveReception
+			return nil, services.ErrNoActiveReception
 		}
 		return nil, fmt.Errorf("failed to get active reception for PVZ: %w", err)
 	}
@@ -167,7 +169,7 @@ func (r *ReceptionRepository) CloseReception(ctx context.Context, id uuid.UUID) 
 	}
 
 	if rowsAffected == 0 {
-		return models.ErrReceptionNotFound
+		return repoerrors.ErrReceptionNotFound
 	}
 
 	log.Info().
@@ -201,7 +203,7 @@ func (r *ReceptionRepository) GetLastReceptionByPVZID(ctx context.Context, pvzID
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrReceptionNotFound
+			return nil, repoerrors.ErrReceptionNotFound
 		}
 		return nil, fmt.Errorf("failed to get last reception for PVZ: %w", err)
 	}

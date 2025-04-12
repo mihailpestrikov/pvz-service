@@ -2,7 +2,9 @@ package services
 
 import (
 	"avito-backend-trainee-assignment-spring-2025/internal/auth"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
+	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"avito-backend-trainee-assignment-spring-2025/pkg/config"
 	"avito-backend-trainee-assignment-spring-2025/pkg/hasher"
 	"context"
@@ -33,9 +35,9 @@ func NewUserService(repo UserRepository, jwtConfig config.JWTConfig) *UserServic
 func (s *UserService) Register(ctx context.Context, email, password, role string) (*models.User, error) {
 	_, err := s.repo.GetByEmail(ctx, email)
 	if err == nil {
-		return nil, models.ErrUserAlreadyExists
+		return nil, repoerrors.ErrUserAlreadyExists
 	}
-	if !errors.Is(err, models.ErrUserNotFound) {
+	if !errors.Is(err, repoerrors.ErrUserNotFound) {
 		log.Error().Err(err).Str("email", email).Msg("Failed to check if user exists")
 		return nil, err
 	}
@@ -60,8 +62,8 @@ func (s *UserService) Register(ctx context.Context, email, password, role string
 func (s *UserService) Login(ctx context.Context, email, password string) (string, error) {
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, models.ErrUserNotFound) {
-			return "", models.ErrInvalidCredentials
+		if errors.Is(err, repoerrors.ErrUserNotFound) {
+			return "", apperrors.ErrInvalidCredentials
 		}
 		log.Error().Err(err).Str("email", email).Msg("Failed to get user by email")
 		return "", err
@@ -69,7 +71,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (string
 
 	if !hasher.Verify(user.PasswordHash, password) {
 		log.Warn().Str("email", email).Msg("Invalid login attempt: wrong password")
-		return "", models.ErrInvalidCredentials
+		return "", apperrors.ErrInvalidCredentials
 	}
 
 	token, err := auth.GenerateToken(user.ID, user.Role, s.jwtConfig.Secret, s.jwtConfig.Expiration)
@@ -84,7 +86,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (string
 
 func (s *UserService) DummyLogin(role string) (string, error) {
 	if role != models.RoleEmployee && role != models.RoleModerator {
-		return "", models.ErrInvalidRole
+		return "", apperrors.ErrInvalidRole
 	}
 
 	token, err := auth.GenerateDummyToken(role, s.jwtConfig.Secret, s.jwtConfig.Expiration)
