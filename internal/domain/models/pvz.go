@@ -29,6 +29,11 @@ type PVZ struct {
 	City             string    `json:"city"`
 }
 
+type PVZWithReceptions struct {
+	PVZ        *PVZ
+	Receptions []*Reception
+}
+
 func NewPVZ(city string) (*PVZ, error) {
 	if city == "" {
 		return nil, ErrCityRequired
