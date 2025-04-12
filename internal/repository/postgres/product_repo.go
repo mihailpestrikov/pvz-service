@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"context"
 	"database/sql"
 	"errors"
@@ -44,7 +45,7 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 			Msg("Failed to create product")
 
 		if isDuplicateKeyError(err) {
-			return models.ErrProductAlreadyExists
+			return repoerrors.ErrProductAlreadyExists
 		}
 
 		return fmt.Errorf("failed to create product: %w", err)
@@ -83,7 +84,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrProductNotFound
+			return nil, repoerrors.ErrProductNotFound
 		}
 		return nil, fmt.Errorf("failed to get product by ID: %w", err)
 	}
@@ -108,7 +109,7 @@ func (r *ProductRepository) DeleteLastFromReception(ctx context.Context, recepti
 		err = tx.QueryRowContext(ctx, sqlQuery, args...).Scan(&productID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return models.ErrProductNotFound
+				return repoerrors.ErrProductNotFound
 			}
 			return fmt.Errorf("failed to get last product from reception: %w", err)
 		}

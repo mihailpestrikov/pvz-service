@@ -76,7 +76,7 @@ func (s *ProductService) DeleteLastProduct(ctx context.Context, pvzID uuid.UUID)
 	}
 
 	if len(products) == 0 {
-		return apperrors.ErrProductNotFound
+		return apperrors.ErrNoProductsToDelete
 	}
 
 	return s.productRepo.DeleteLastFromReception(ctx, reception.ID)

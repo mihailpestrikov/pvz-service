@@ -4,13 +4,6 @@ import (
 	"errors"
 )
 
-// Generic storage errors
-var (
-	ErrConnectionFailed  = errors.New("database connection failed")
-	ErrQueryFailed       = errors.New("database query failed")
-	ErrTransactionFailed = errors.New("database transaction failed")
-)
-
 // User storage errors
 var (
 	ErrUserNotFound      = errors.New("user not found")
