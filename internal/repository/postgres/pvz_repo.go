@@ -187,35 +187,34 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 	}
 
 	receptionQuery := r.sb.Select(
-		"r.id",
-		"r.date_time",
-		"r.pvz_id",
-		"r.status",
+		"id",
+		"date_time",
+		"pvz_id",
+		"status",
 	).
-		From("reception r").
-		Where(squirrel.Eq{"r.pvz_id": pvzIDs})
+		From("reception").
+		Where(squirrel.Eq{"pvz_id": pvzIDs})
 
 	if filter.StartDate != nil && filter.EndDate != nil {
 		receptionQuery = receptionQuery.Where(squirrel.And{
-			squirrel.GtOrEq{"r.date_time": filter.StartDate},
-			squirrel.LtOrEq{"r.date_time": filter.EndDate},
+			squirrel.GtOrEq{"date_time": filter.StartDate},
+			squirrel.LtOrEq{"date_time": filter.EndDate},
 		})
 	}
 
 	receptionSQL, receptionArgs, err := receptionQuery.ToSql()
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to build SQL query for receptions")
 		return nil, 0, fmt.Errorf("failed to build receptions SQL query: %w", err)
 	}
 
 	receptionRows, err := r.db.QueryContext(ctx, receptionSQL, receptionArgs...)
 	if err != nil {
-		log.Error().Err(err).Msg("Database error while querying receptions")
 		return nil, 0, fmt.Errorf("failed to query receptions: %w", err)
 	}
 	defer receptionRows.Close()
 
 	pvzReceptions := make(map[uuid.UUID][]*models.Reception)
+	var receptionIDs []interface{}
 
 	for receptionRows.Next() {
 		reception := &models.Reception{}
@@ -226,27 +225,19 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 			&reception.Status,
 		)
 		if err != nil {
-			log.Error().Err(err).Msg("Database error while scanning reception row")
 			return nil, 0, fmt.Errorf("failed to scan reception row: %w", err)
 		}
 
 		pvzReceptions[reception.PVZID] = append(pvzReceptions[reception.PVZID], reception)
+		receptionIDs = append(receptionIDs, reception.ID)
 	}
 
 	if err = receptionRows.Err(); err != nil {
-		log.Error().Err(err).Msg("Error while iterating reception rows")
 		return nil, 0, fmt.Errorf("error iterating through reception rows: %w", err)
 	}
 
-	var receptionIDs []interface{}
-	for _, receptions := range pvzReceptions {
-		for _, reception := range receptions {
-			receptionIDs = append(receptionIDs, reception.ID)
-		}
-	}
-
-	var result []models.PVZWithReceptions
 	if len(receptionIDs) == 0 {
+		var result []models.PVZWithReceptions
 		for _, pvz := range pvzs {
 			result = append(result, models.PVZWithReceptions{
 				PVZ:        pvz,
@@ -257,23 +248,21 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 	}
 
 	productQuery := r.sb.Select(
-		"p.id",
-		"p.date_time",
-		"p.type",
-		"p.reception_id",
+		"id",
+		"date_time",
+		"type",
+		"reception_id",
 	).
-		From("product p").
-		Where(squirrel.Eq{"p.reception_id": receptionIDs})
+		From("product").
+		Where(squirrel.Eq{"reception_id": receptionIDs})
 
 	productSQL, productArgs, err := productQuery.ToSql()
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to build SQL query for products")
 		return nil, 0, fmt.Errorf("failed to build products SQL query: %w", err)
 	}
 
 	productRows, err := r.db.QueryContext(ctx, productSQL, productArgs...)
 	if err != nil {
-		log.Error().Err(err).Msg("Database error while querying products")
 		return nil, 0, fmt.Errorf("failed to query products: %w", err)
 	}
 	defer productRows.Close()
@@ -289,7 +278,6 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 			&product.ReceptionID,
 		)
 		if err != nil {
-			log.Error().Err(err).Msg("Database error while scanning product row")
 			return nil, 0, fmt.Errorf("failed to scan product row: %w", err)
 		}
 
@@ -297,16 +285,21 @@ func (r *PVZRepository) GetAllWithReceptions(ctx context.Context, filter models.
 	}
 
 	if err = productRows.Err(); err != nil {
-		log.Error().Err(err).Msg("Error while iterating product rows")
 		return nil, 0, fmt.Errorf("error iterating through product rows: %w", err)
 	}
 
-	for _, receptions := range pvzReceptions {
-		for _, reception := range receptions {
-			reception.Products = receptionProducts[reception.ID]
+	for receptionID, products := range receptionProducts {
+		for pvzID, receptions := range pvzReceptions {
+			for i, reception := range receptions {
+				if reception.ID == receptionID {
+					pvzReceptions[pvzID][i].Products = products
+					break
+				}
+			}
 		}
 	}
 
+	var result []models.PVZWithReceptions
 	for _, pvz := range pvzs {
 		result = append(result, models.PVZWithReceptions{
 			PVZ:        pvz,
