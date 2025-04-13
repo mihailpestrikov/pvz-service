@@ -1,17 +1,22 @@
 package main
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/api/handlers"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/postgres"
+	"avito-backend-trainee-assignment-spring-2025/internal/services"
 	"avito-backend-trainee-assignment-spring-2025/pkg/config"
 	"avito-backend-trainee-assignment-spring-2025/pkg/logger"
 	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
 	"context"
+	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -22,7 +27,6 @@ func main() {
 	}
 
 	logger.Setup(cfg.Logger)
-
 	log.Info().
 		Str("app_env", cfg.Server.AppEnv).
 		Str("port", cfg.Server.Port).
@@ -34,24 +38,67 @@ func main() {
 	}
 	defer db.Close()
 
+	userRepo := postgres.NewUserRepository(db)
+	pvzRepo := postgres.NewPVZRepository(db)
+	receptionRepo := postgres.NewReceptionRepository(db)
+	productRepo := postgres.NewProductRepository(db)
+	txManager := postgres.NewTxManager(db)
+
+	userService := services.NewUserService(userRepo, cfg.JWT, txManager)
+	pvzService := services.NewPVZService(pvzRepo, txManager)
+	receptionService := services.NewReceptionService(receptionRepo, pvzRepo, txManager)
+	productService := services.NewProductService(productRepo, receptionRepo, txManager)
+
+	handler := handlers.NewHandler(
+		userService,
+		pvzService,
+		receptionService,
+		productService,
+		cfg,
+	)
+
+	router := handler.InitRoutes()
+
+	server := &http.Server{
+		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
+		Handler:      router,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
+	}
+
 	metricsServer := metrics.NewServer(cfg.Prometheus.Port)
 	go func() {
-		if err := metricsServer.Start(); err != nil {
+		if err := metricsServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error().Err(err).Msg("Failed to start metrics server")
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		log.Info().Str("address", server.Addr).Msg("Starting HTTP server")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msg("Failed to start HTTP server")
+		}
+	}()
 
-	<-stop
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
 	log.Info().Msg("Shutting down application")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Msg("Failed to stop HTTP server")
+	}
+	log.Info().Msg("HTTP server stopped")
+
 	if err := metricsServer.Stop(ctx); err != nil {
 		log.Error().Err(err).Msg("Failed to stop metrics server")
 	}
+	log.Info().Msg("Metrics server stopped")
 
-	os.Exit(0)
+	log.Info().Msg("Application shutdown complete")
 }
