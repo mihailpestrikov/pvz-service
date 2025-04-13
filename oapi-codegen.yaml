@@ -1,0 +1,11 @@
+package: dto
+generate:
+  models: true
+  client: false
+output: ../dto/oapi_dtos.go
+additional-imports:
+  - package: github.com/go-playground/validator/v10
+import-mapping:
+  UUID: github.com/google/uuid.UUID
+output-options:
+  skip-prune: true

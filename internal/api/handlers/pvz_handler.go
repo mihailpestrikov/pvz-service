@@ -9,7 +9,7 @@ import (
 )
 
 func (h *Handler) createPVZ(c *gin.Context) {
-	var req dto.PVZRequestDTO
+	var req dto.PostPvzJSONRequestBody
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Debug().Err(err).Msg("Invalid request format in createPVZ")
@@ -17,19 +17,19 @@ func (h *Handler) createPVZ(c *gin.Context) {
 		return
 	}
 
-	pvz, err := h.pvzService.CreatePVZ(c.Request.Context(), req.City)
+	pvz, err := h.pvzService.CreatePVZ(c.Request.Context(), string(req.City))
 	if err != nil {
-		log.Error().Err(err).Str("city", req.City).Msg("PVZ creation failed")
+		log.Error().Err(err).Str("city", string(req.City)).Msg("PVZ creation failed")
 
 		statusCode, message := getErrorResponse(err)
 		c.JSON(statusCode, gin.H{"message": message})
 		return
 	}
 
-	response := dto.PVZResponseDTO{
-		ID:               pvz.ID.String(),
-		RegistrationDate: pvz.RegistrationDate,
-		City:             pvz.City,
+	response := dto.PVZ{
+		Id:               &pvz.ID,
+		RegistrationDate: &pvz.RegistrationDate,
+		City:             dto.PVZCity(pvz.City),
 	}
 
 	log.Info().
@@ -41,7 +41,7 @@ func (h *Handler) createPVZ(c *gin.Context) {
 }
 
 func (h *Handler) getPVZList(c *gin.Context) {
-	var filterDTO dto.PVZListFilterDTO
+	var filterDTO dto.GetPvzParams
 
 	if err := c.ShouldBindQuery(&filterDTO); err != nil {
 		log.Debug().Err(err).Msg("Invalid query parameters in getPVZList")
@@ -56,12 +56,12 @@ func (h *Handler) getPVZList(c *gin.Context) {
 		Limit:     10,
 	}
 
-	if filterDTO.Page > 0 {
-		filter.Page = filterDTO.Page
+	if filterDTO.Page != nil && *filterDTO.Page > 0 {
+		filter.Page = *filterDTO.Page
 	}
 
-	if filterDTO.Limit > 0 && filterDTO.Limit <= 30 {
-		filter.Limit = filterDTO.Limit
+	if filterDTO.Limit != nil && *filterDTO.Limit > 0 && *filterDTO.Limit <= 30 {
+		filter.Limit = *filterDTO.Limit
 	}
 
 	pvzList, total, err := h.pvzService.GetAllPVZWithReceptions(c.Request.Context(), filter)
@@ -85,46 +85,46 @@ func (h *Handler) getPVZList(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int) dto.PVZListResponseDTO {
-	items := make([]dto.PVZWithReceptionsResponseDTO, len(pvzList))
+func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int) PVZListResponseDTO {
+	items := make([]PVZWithReceptionsResponseDTO, len(pvzList))
 
 	for i, pvz := range pvzList {
-		receptions := make([]dto.ReceptionWithProductsDTO, 0)
+		receptions := make([]ReceptionWithProductsDTO, 0)
 
 		for _, reception := range pvz.Receptions {
-			products := make([]dto.ProductResponseDTO, len(reception.Products))
+			products := make([]dto.Product, len(reception.Products))
 
 			for j, product := range reception.Products {
-				products[j] = dto.ProductResponseDTO{
-					ID:          product.ID.String(),
-					DateTime:    product.DateTime,
-					Type:        product.Type,
-					ReceptionID: product.ReceptionID.String(),
+				products[j] = dto.Product{
+					DateTime:    &product.DateTime,
+					Id:          &product.ID,
+					Type:        dto.ProductType(product.Type),
+					ReceptionId: product.ReceptionID,
 				}
 			}
 
-			receptions = append(receptions, dto.ReceptionWithProductsDTO{
-				Reception: dto.ReceptionResponseDTO{
-					ID:       reception.ID.String(),
+			receptions = append(receptions, ReceptionWithProductsDTO{
+				Reception: dto.Reception{
+					Id:       &reception.ID,
 					DateTime: reception.DateTime,
-					PVZID:    reception.PVZID.String(),
-					Status:   reception.Status,
+					PvzId:    reception.PVZID,
+					Status:   dto.ReceptionStatus(reception.Status),
 				},
 				Products: products,
 			})
 		}
 
-		items[i] = dto.PVZWithReceptionsResponseDTO{
-			PVZ: dto.PVZResponseDTO{
-				ID:               pvz.PVZ.ID.String(),
-				RegistrationDate: pvz.PVZ.RegistrationDate,
-				City:             pvz.PVZ.City,
+		items[i] = PVZWithReceptionsResponseDTO{
+			PVZ: dto.PVZ{
+				Id:               &pvz.PVZ.ID,
+				RegistrationDate: &pvz.PVZ.RegistrationDate,
+				City:             dto.PVZCity(pvz.PVZ.City),
 			},
 			Receptions: receptions,
 		}
 	}
 
-	return dto.PVZListResponseDTO{
+	return PVZListResponseDTO{
 		Items:      items,
 		TotalCount: total,
 		Page:       page,

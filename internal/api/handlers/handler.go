@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+//go:generate oapi-codegen -config ../../../oapi-codegen.yaml ../../../swagger.yaml
+
 var userFriendlyErrors = map[error]string{
 	apperrors.ErrInvalidCredentials:        "Invalid email or password. Please check your credentials.",
 	apperrors.ErrEmailRequired:             "Email is required for registration.",

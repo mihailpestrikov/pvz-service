@@ -9,7 +9,7 @@ import (
 )
 
 func (h *Handler) addProduct(c *gin.Context) {
-	var req dto.ProductCreateRequestDTO
+	var req dto.PostProductsJSONRequestBody
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Debug().Err(err).Msg("Invalid request format in addProduct")
@@ -17,17 +17,19 @@ func (h *Handler) addProduct(c *gin.Context) {
 		return
 	}
 
-	pvzID, err := uuid.Parse(req.PVZID)
+	pvzID, err := uuid.Parse(req.PvzId.String())
 	if err != nil {
-		log.Debug().Err(err).Str("pvz_id", req.PVZID).Msg("Invalid PVZ ID format")
+		log.Debug().Err(err).Str("pvz_id", req.PvzId.String()).Msg("Invalid PVZ ID format")
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PVZ ID format"})
 		return
 	}
 
-	product, err := h.productService.AddProduct(c.Request.Context(), req.Type, pvzID)
+	productType := string(req.Type)
+
+	product, err := h.productService.AddProduct(c.Request.Context(), productType, pvzID)
 	if err != nil {
 		log.Error().Err(err).
-			Str("type", req.Type).
+			Str("type", productType).
 			Str("pvz_id", pvzID.String()).
 			Msg("Product addition failed")
 
@@ -36,11 +38,11 @@ func (h *Handler) addProduct(c *gin.Context) {
 		return
 	}
 
-	response := dto.ProductResponseDTO{
-		ID:          product.ID.String(),
-		DateTime:    product.DateTime,
-		Type:        product.Type,
-		ReceptionID: product.ReceptionID.String(),
+	response := dto.Product{
+		Id:          &product.ID,
+		DateTime:    &product.DateTime,
+		Type:        dto.ProductType(product.Type),
+		ReceptionId: product.ReceptionID,
 	}
 
 	log.Info().
@@ -53,9 +55,10 @@ func (h *Handler) addProduct(c *gin.Context) {
 }
 
 func (h *Handler) deleteLastProduct(c *gin.Context) {
-	pvzID, err := uuid.Parse(c.Param("pvzId"))
+	pvzIdParam := c.Param("pvzId")
+	pvzID, err := uuid.Parse(pvzIdParam)
 	if err != nil {
-		log.Debug().Err(err).Str("pvz_id", c.Param("pvzId")).Msg("Invalid PVZ ID format")
+		log.Debug().Err(err).Str("pvz_id", pvzIdParam).Msg("Invalid PVZ ID format")
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PVZ ID format"})
 		return
 	}

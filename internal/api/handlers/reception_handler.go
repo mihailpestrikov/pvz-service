@@ -9,7 +9,7 @@ import (
 )
 
 func (h *Handler) createReception(c *gin.Context) {
-	var req dto.ReceptionCreateRequestDTO
+	var req dto.PostReceptionsJSONRequestBody
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Debug().Err(err).Msg("Invalid request format in createReception")
@@ -17,9 +17,9 @@ func (h *Handler) createReception(c *gin.Context) {
 		return
 	}
 
-	pvzID, err := uuid.Parse(req.PVZID)
+	pvzID, err := uuid.Parse(req.PvzId.String())
 	if err != nil {
-		log.Debug().Err(err).Str("pvz_id", req.PVZID).Msg("Invalid PVZ ID format")
+		log.Debug().Err(err).Str("pvz_id", req.PvzId.String()).Msg("Invalid PVZ ID format")
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PVZ ID format"})
 		return
 	}
@@ -33,11 +33,11 @@ func (h *Handler) createReception(c *gin.Context) {
 		return
 	}
 
-	response := dto.ReceptionResponseDTO{
-		ID:       reception.ID.String(),
+	response := dto.Reception{
+		Id:       &reception.ID,
 		DateTime: reception.DateTime,
-		PVZID:    reception.PVZID.String(),
-		Status:   reception.Status,
+		PvzId:    reception.PVZID,
+		Status:   dto.ReceptionStatus(reception.Status),
 	}
 
 	log.Info().
@@ -49,9 +49,10 @@ func (h *Handler) createReception(c *gin.Context) {
 }
 
 func (h *Handler) closeReception(c *gin.Context) {
-	pvzID, err := uuid.Parse(c.Param("pvzId"))
+	pvzIdParam := c.Param("pvzId")
+	pvzID, err := uuid.Parse(pvzIdParam)
 	if err != nil {
-		log.Debug().Err(err).Str("pvz_id", c.Param("pvzId")).Msg("Invalid PVZ ID format")
+		log.Debug().Err(err).Str("pvz_id", pvzIdParam).Msg("Invalid PVZ ID format")
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PVZ ID format"})
 		return
 	}
@@ -65,11 +66,11 @@ func (h *Handler) closeReception(c *gin.Context) {
 		return
 	}
 
-	response := dto.ReceptionResponseDTO{
-		ID:       reception.ID.String(),
+	response := dto.Reception{
+		Id:       &reception.ID,
 		DateTime: reception.DateTime,
-		PVZID:    reception.PVZID.String(),
-		Status:   reception.Status,
+		PvzId:    reception.PVZID,
+		Status:   dto.ReceptionStatus(reception.Status),
 	}
 
 	log.Info().
