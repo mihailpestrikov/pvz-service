@@ -21,7 +21,7 @@ type ReceptionRepository struct {
 	sb squirrel.StatementBuilderType
 }
 
-func NewReceptionRepository(db Querier) interfaces.ReceptionRepository {
+func NewReceptionRepository(db Querier) interfaces.TxReceptionRepository {
 	return &ReceptionRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),

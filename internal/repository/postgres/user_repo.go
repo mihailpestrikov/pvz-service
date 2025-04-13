@@ -19,7 +19,7 @@ type UserRepository struct {
 	sb squirrel.StatementBuilderType
 }
 
-func NewUserRepository(db Querier) interfaces.UserRepository {
+func NewUserRepository(db Querier) interfaces.TxUserRepository {
 	return &UserRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),

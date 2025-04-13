@@ -19,7 +19,7 @@ type PVZRepository struct {
 	sb squirrel.StatementBuilderType
 }
 
-func NewPVZRepository(db Querier) interfaces.PVZRepository {
+func NewPVZRepository(db Querier) interfaces.TxPVZRepository {
 	return &PVZRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),

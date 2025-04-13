@@ -20,7 +20,7 @@ type ProductRepository struct {
 	sb squirrel.StatementBuilderType
 }
 
-func NewProductRepository(db Querier) interfaces.ProductRepository {
+func NewProductRepository(db Querier) interfaces.TxProductRepository {
 	return &ProductRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
