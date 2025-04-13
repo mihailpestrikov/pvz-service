@@ -1,7 +1,10 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/interfaces"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
+	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
 	"context"
 	"database/sql"
 	"errors"
@@ -10,20 +13,24 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-
-	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
-	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
 )
 
 type ProductRepository struct {
-	db *DB
+	db Querier
 	sb squirrel.StatementBuilderType
 }
 
-func NewProductRepository(db *DB) *ProductRepository {
+func NewProductRepository(db Querier) interfaces.ProductRepository {
 	return &ProductRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+}
+
+func (r *ProductRepository) WithTx(tx *sql.Tx) interfaces.ProductRepository {
+	return &ProductRepository{
+		db: tx,
+		sb: r.sb,
 	}
 }
 
@@ -94,51 +101,49 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 }
 
 func (r *ProductRepository) DeleteLastFromReception(ctx context.Context, receptionID uuid.UUID) error {
-	return r.db.Transaction(ctx, func(tx *sql.Tx) error {
-		query := r.sb.Select("id").
-			From("product").
-			Where(squirrel.Eq{"reception_id": receptionID}).
-			OrderBy("date_time DESC").
-			Limit(1)
+	query := r.sb.Select("id").
+		From("product").
+		Where(squirrel.Eq{"reception_id": receptionID}).
+		OrderBy("date_time DESC").
+		Limit(1)
 
-		sqlQuery, args, err := query.ToSql()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to build SQL query for retrieving last product")
-			return fmt.Errorf("failed to build SQL query: %w", err)
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for retrieving last product")
+		return fmt.Errorf("failed to build SQL query: %w", err)
+	}
+
+	var productID uuid.UUID
+	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(&productID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repoerrors.ErrProductNotFound
 		}
 
-		var productID uuid.UUID
-		err = tx.QueryRowContext(ctx, sqlQuery, args...).Scan(&productID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return repoerrors.ErrProductNotFound
-			}
+		log.Error().Err(err).
+			Str("reception_id", receptionID.String()).
+			Msg("Database error while retrieving last product")
+		return fmt.Errorf("failed to get last product from reception: %w", err)
+	}
 
-			log.Error().Err(err).
-				Str("reception_id", receptionID.String()).
-				Msg("Database error while retrieving last product")
-			return fmt.Errorf("failed to get last product from reception: %w", err)
-		}
+	deleteQuery := r.sb.Delete("product").
+		Where(squirrel.Eq{"id": productID})
 
-		deleteQuery := r.sb.Delete("product").
-			Where(squirrel.Eq{"id": productID})
+	sqlQuery, args, err = deleteQuery.ToSql()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to build SQL query for product deletion")
+		return fmt.Errorf("failed to build SQL query: %w", err)
+	}
 
-		sqlQuery, args, err = deleteQuery.ToSql()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to build SQL query for product deletion")
-			return fmt.Errorf("failed to build SQL query: %w", err)
-		}
+	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		log.Error().Err(err).
+			Str("product_id", productID.String()).
+			Msg("Database error while deleting product")
+		return fmt.Errorf("failed to delete last product: %w", err)
+	}
 
-		_, err = tx.ExecContext(ctx, sqlQuery, args...)
-		if err != nil {
-			log.Error().Err(err).
-				Str("product_id", productID.String()).
-				Msg("Database error while deleting product")
-			return fmt.Errorf("failed to delete last product: %w", err)
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func (r *ProductRepository) GetByReceptionID(ctx context.Context, receptionID uuid.UUID) ([]models.Product, error) {

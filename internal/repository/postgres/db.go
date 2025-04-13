@@ -78,49 +78,6 @@ func (db *DB) BeginTx(ctx context.Context) (*sql.Tx, error) {
 	return tx, err
 }
 
-func (db *DB) Transaction(ctx context.Context, fn func(*sql.Tx) error) error {
-	log.Debug().Msg("Executing database transaction")
-	startTime := time.Now()
-
-	tx, err := db.BeginTx(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if p := recover(); p != nil {
-			log.Error().
-				Interface("panic", p).
-				Dur("duration", time.Since(startTime)).
-				Msg("Transaction panicked, rolling back")
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
-
-	if err := fn(tx); err != nil {
-		log.Debug().
-			Err(err).
-			Dur("duration", time.Since(startTime)).
-			Msg("Transaction failed, rolling back")
-		_ = tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		log.Error().
-			Err(err).
-			Dur("duration", time.Since(startTime)).
-			Msg("Failed to commit transaction")
-		return err
-	}
-
-	log.Debug().
-		Dur("duration", time.Since(startTime)).
-		Msg("Transaction committed successfully")
-	return nil
-}
-
 func (db *DB) Ping(ctx context.Context) error {
 	log.Debug().Msg("Pinging database")
 	err := db.PingContext(ctx)

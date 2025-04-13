@@ -1,7 +1,10 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/interfaces"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
+	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
 	"context"
 	"database/sql"
 	"errors"
@@ -9,20 +12,24 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-
-	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
-	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
 )
 
 type PVZRepository struct {
-	db *DB
+	db Querier
 	sb squirrel.StatementBuilderType
 }
 
-func NewPVZRepository(db *DB) *PVZRepository {
+func NewPVZRepository(db Querier) interfaces.PVZRepository {
 	return &PVZRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+}
+
+func (r *PVZRepository) WithTx(tx *sql.Tx) interfaces.PVZRepository {
+	return &PVZRepository{
+		db: tx,
+		sb: r.sb,
 	}
 }
 

@@ -3,60 +3,75 @@ package services
 import (
 	"avito-backend-trainee-assignment-spring-2025/internal/auth"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/interfaces"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
+	"avito-backend-trainee-assignment-spring-2025/internal/repository/postgres"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"avito-backend-trainee-assignment-spring-2025/pkg/config"
 	"avito-backend-trainee-assignment-spring-2025/pkg/hasher"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
-type UserRepository interface {
-	Create(ctx context.Context, user *models.User) error
-	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
-	GetByEmail(ctx context.Context, email string) (*models.User, error)
-	Delete(ctx context.Context, id uuid.UUID) error
-}
-
 type UserService struct {
-	repo      UserRepository
+	repo      interfaces.TxUserRepository
 	jwtConfig config.JWTConfig
+	txManager postgres.TxManager
 }
 
-func NewUserService(repo UserRepository, jwtConfig config.JWTConfig) *UserService {
+func NewUserService(
+	repo interfaces.TxUserRepository,
+	jwtConfig config.JWTConfig,
+	txManager postgres.TxManager,
+) *UserService {
 	return &UserService{
 		repo:      repo,
 		jwtConfig: jwtConfig,
+		txManager: txManager,
 	}
 }
 
 func (s *UserService) Register(ctx context.Context, email, password, role string) (*models.User, error) {
-	_, err := s.repo.GetByEmail(ctx, email)
-	if err == nil {
-		log.Info().
-			Str("email", email).
-			Msg("Registration failed: user already exists")
-		return nil, repoerrors.ErrUserAlreadyExists
-	}
+	var user *models.User
 
-	if !errors.Is(err, repoerrors.ErrUserNotFound) {
-		return nil, fmt.Errorf("failed to check if user exists: %w", err)
-	}
+	err := s.txManager.RunTransaction(ctx, func(tx *sql.Tx) error {
+		txRepo := s.repo.WithTx(tx)
 
-	user, err := models.NewUser(email, password, role)
+		_, err := txRepo.GetByEmail(ctx, email)
+		if err == nil {
+			log.Info().
+				Str("email", email).
+				Msg("Registration failed: user already exists")
+			return repoerrors.ErrUserAlreadyExists
+		}
+
+		if !errors.Is(err, repoerrors.ErrUserNotFound) {
+			return fmt.Errorf("failed to check if user exists: %w", err)
+		}
+
+		newUser, err := models.NewUser(email, password, role)
+		if err != nil {
+			log.Info().
+				Err(err).
+				Str("email", email).
+				Msg("User validation failed during registration")
+			return err
+		}
+
+		if err := txRepo.Create(ctx, newUser); err != nil {
+			return fmt.Errorf("failed to save user: %w", err)
+		}
+
+		user = newUser
+		return nil
+	})
+
 	if err != nil {
-		log.Info().
-			Err(err).
-			Str("email", email).
-			Msg("User validation failed during registration")
 		return nil, err
-	}
-
-	if err := s.repo.Create(ctx, user); err != nil {
-		return nil, fmt.Errorf("failed to save user: %w", err)
 	}
 
 	log.Info().
@@ -138,17 +153,21 @@ func (s *UserService) GetUserByID(ctx context.Context, id uuid.UUID) (*models.Us
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
+	return s.txManager.RunTransaction(ctx, func(tx *sql.Tx) error {
+		txRepo := s.repo.WithTx(tx)
 
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
+		_, err := txRepo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
 
-	log.Info().
-		Str("user_id", id.String()).
-		Msg("User deleted successfully")
-	return nil
+		if err := txRepo.Delete(ctx, id); err != nil {
+			return fmt.Errorf("failed to delete user: %w", err)
+		}
+
+		log.Info().
+			Str("user_id", id.String()).
+			Msg("User deleted successfully")
+		return nil
+	})
 }

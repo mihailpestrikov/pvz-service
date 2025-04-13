@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/interfaces"
+	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
 	"context"
 	"database/sql"
@@ -10,19 +12,24 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-
-	"avito-backend-trainee-assignment-spring-2025/internal/domain/models"
 )
 
 type UserRepository struct {
-	db *DB
+	db Querier
 	sb squirrel.StatementBuilderType
 }
 
-func NewUserRepository(db *DB) *UserRepository {
+func NewUserRepository(db Querier) interfaces.UserRepository {
 	return &UserRepository{
 		db: db,
 		sb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+}
+
+func (r *UserRepository) WithTx(tx *sql.Tx) interfaces.UserRepository {
+	return &UserRepository{
+		db: tx,
+		sb: r.sb,
 	}
 }
 
