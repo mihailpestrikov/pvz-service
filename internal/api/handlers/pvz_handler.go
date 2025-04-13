@@ -85,11 +85,11 @@ func (h *Handler) getPVZList(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int) PVZListResponseDTO {
-	items := make([]PVZWithReceptionsResponseDTO, len(pvzList))
+func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int) dto.PVZListResponseDTO {
+	items := make([]dto.PVZWithReceptionsResponseDTO, len(pvzList))
 
 	for i, pvz := range pvzList {
-		receptions := make([]ReceptionWithProductsDTO, 0)
+		receptions := make([]dto.ReceptionWithProductsDTO, 0)
 
 		for _, reception := range pvz.Receptions {
 			products := make([]dto.Product, len(reception.Products))
@@ -103,7 +103,7 @@ func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int)
 				}
 			}
 
-			receptions = append(receptions, ReceptionWithProductsDTO{
+			receptions = append(receptions, dto.ReceptionWithProductsDTO{
 				Reception: dto.Reception{
 					Id:       &reception.ID,
 					DateTime: reception.DateTime,
@@ -114,7 +114,7 @@ func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int)
 			})
 		}
 
-		items[i] = PVZWithReceptionsResponseDTO{
+		items[i] = dto.PVZWithReceptionsResponseDTO{
 			PVZ: dto.PVZ{
 				Id:               &pvz.PVZ.ID,
 				RegistrationDate: &pvz.PVZ.RegistrationDate,
@@ -124,7 +124,7 @@ func mapPVZListToDTO(pvzList []models.PVZWithReceptions, total, page, limit int)
 		}
 	}
 
-	return PVZListResponseDTO{
+	return dto.PVZListResponseDTO{
 		Items:      items,
 		TotalCount: total,
 		Page:       page,
