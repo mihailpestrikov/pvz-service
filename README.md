@@ -44,7 +44,7 @@
 
 1. Клонировать репозиторий:
 ```bash
-git clone https://github.com/yourusername/avito-backend-trainee-assignment-spring-2025
+git clone https://github.com/mihailpestrikov/avito-backend-trainee-assignment-spring-2025
 cd avito-backend-trainee-assignment-spring-2025
 ```
 
