@@ -1,20 +1,137 @@
-# Сервис для работы с ПВЗ 
- 
-## Описание проекта 
-Сервис для управления пунктами выдачи заказов (ПВЗ) и приемкой товаров. 
- 
-## Структура проекта 
-- /cmd - Точки входа в приложение 
-  - /api - HTTP API сервер 
-  - /grpc - gRPC сервер (опционально) 
-- /internal - Внутренние пакеты 
-  - /api - HTTP API слой 
-  - /domain - Бизнес-логика 
-  - /repository - Доступ к данным 
-  - /auth - Аутентификация и авторизация 
-  - /config - Конфигурация 
-- /pkg - Переиспользуемые компоненты 
-- /tests - Тесты 
-- /migrations - Миграции схемы БД 
-- /docs - Документация 
+# Сервис для работы с ПВЗ (Пункты выдачи заказов)
 
+Система управления пунктами выдачи заказов для Авито, реализованная в рамках тестового задания для стажера Backend-направления (весенняя волна 2025).
+
+## Основные возможности
+
+- **Авторизация пользователей**: Регистрация и вход через JWT-токены
+- **Управление ПВЗ**: Создание и просмотр пунктов выдачи заказов
+- **Приёмка товаров**: Инициирование приёмки, добавление и удаление товаров
+- **История операций**: Полная информация о ПВЗ и их приёмках
+- **Поддержка высокой нагрузки**: Оптимизация для 1000 RPS с временем ответа < 100 мс
+
+## Стек технологий
+
+- **Язык**: Go 1.24
+- **Веб-фреймворк**: Gin
+- **Аутентификация**: JWT
+- **База данных**: PostgreSQL
+- **Доступ к данным**: SQL с использованием Squirrel для построения запросов
+- **Логирование**: Zerolog
+- **Метрики**: Prometheus
+- **API документация**: OpenAPI (Swagger)
+- **gRPC**: для получения данных о ПВЗ
+- **Тестирование**: Testify, gomock
+- **Контейнеризация**: Docker и Docker Compose
+- **Кодогенерация**: Dto через oapi-codegen
+
+## Архитектура
+
+Проект построен с использованием чистой архитектуры:
+
+- `/cmd` - Точки входа в приложение (HTTP API, gRPC сервер)
+- `/internal` - Внутренние компоненты:
+  - `/api` - HTTP API слой (handlers, DTO, middleware)
+  - `/domain` - Бизнес-логика и модели
+  - `/repository` - Слой доступа к данным
+  - `/services` - Сервисы приложения
+  - `/auth` - Аутентификация и авторизация
+- `/pkg` - Переиспользуемые компоненты (конфигурация, логирование, метрики)
+- `/tests` - Интеграционные и юнит-тесты
+- `/migrations` - Миграции схемы базы данных
+
+## Установка и запуск
+
+1. Клонировать репозиторий:
+```bash
+git clone https://github.com/yourusername/avito-backend-trainee-assignment-spring-2025
+cd avito-backend-trainee-assignment-spring-2025
+```
+
+2. Запустить приложение:
+```bash
+docker-compose --env-file .env -f docker-compose.yml up -d --build
+```
+или
+```bash
+make up
+```
+
+3. Сервисы доступны по адресам:
+```
+HTTP API: http://localhost:8080
+Prometheus: http://localhost:9090
+gRPC: localhost:3000
+```
+
+## API
+
+### Аутентификация и пользователи
+
+- **POST /dummyLogin** - Получение тестового токена с выбранной ролью
+- **POST /register** - Регистрация нового пользователя
+- **POST /login** - Авторизация пользователя
+
+### Управление ПВЗ
+
+- **POST /pvz** - Создание нового пункта выдачи заказов (только модераторы)
+- **GET /pvz** - Получение списка ПВЗ с фильтрацией и пагинацией
+
+### Приёмка товаров
+
+- **POST /receptions** - Создание новой приёмки товаров
+- **POST /pvz/{pvzId}/close_last_reception** - Закрытие последней открытой приёмки товаров
+- **POST /products** - Добавление товара в текущую приёмку
+- **POST /pvz/{pvzId}/delete_last_product** - Удаление последнего добавленного товара (LIFO)
+
+## gRPC API
+
+Сервис также предоставляет gRPC-метод для получения списка всех ПВЗ:
+- **GetPVZList** - Возвращает все добавленные в систему ПВЗ без авторизации
+
+Пример использования с помощью grpcurl:
+```bash
+grpcurl -plaintext localhost:3000 pvz.v1.PVZService/GetPVZList
+```
+```bash
+docker run --rm -it --network=host fullstorydev/grpcurl -plaintext localhost:3000 pvz.v1.PVZService/GetPVZList
+```
+
+## Тестирование
+
+Проект включает:
+- Юнит-тесты:
+```bash
+go test -v ./internal/... ./pkg/...
+```
+или
+```bash
+make unit-test
+```
+
+- Интеграционные тесты:
+```bash
+docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit integration-tests
+```
+или 
+```bash
+make test
+```
+
+## Команды
+```bash
+build:
+	docker-compose --env-file .env -f docker-compose.yml build
+
+up: build
+	docker-compose --env-file .env -f docker-compose.yml up -d
+
+test:
+	docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit integration-tests
+
+unit-test:
+	go test -v ./internal/... ./pkg/...
+
+down:
+	docker-compose -f docker-compose.yml down
+```
