@@ -1,9 +1,10 @@
 services:
   api:
+    env_file: .env
     container_name: pvz_api
     build:
       context: .
-      dockerfile: ./cmd/api/Dockerfile
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
       - "9000:9000"
@@ -12,17 +13,18 @@ services:
     networks:
       - internal
 
-#  grpc:
-#    container_name: pvz_grpc
-#    build:
-#      context: .
-#      dockerfile: ./cmd/grpc/Dockerfile
-#    ports:
-#      - "3000:3000"
-#    depends_on:
-#      - postgres
-#    networks:
-#        - internal
+  grpc:
+    env_file: .env
+    container_name: pvz_grpc
+    build:
+      context: .
+      dockerfile: cmd\grpc\Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+        - internal
 
   prometheus:
     container_name: pvz_prometheus

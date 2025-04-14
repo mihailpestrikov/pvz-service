@@ -1,0 +1,65 @@
+services:
+  integration-tests:
+    build:
+      context: .
+      dockerfile: ./tests/integration/Dockerfile
+    command: ["/wait-for-api.sh", "go", "test", "-v", "./tests/integration/..."]
+    depends_on:
+      api-test:
+        condition: service_started
+      postgres-test:
+        condition: service_healthy
+    environment:
+      - TEST_API_URL=http://api-test:8080
+    networks:
+      - test-network
+    restart: on-failure
+
+  api-test:
+    container_name: pvz_api_test
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    environment:
+      - APP_ENV=test
+      - POSTGRES_HOST=postgres-test
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=pvz_test_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=test_password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  postgres-test:
+    container_name: pvz_postgres_test
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: pvz_test_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d pvz_test_db" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    networks:
+      - test-network
+
+volumes:
+  pg_data:
+networks:
+  test-network:
+    driver: bridge
