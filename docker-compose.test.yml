@@ -19,7 +19,7 @@ services:
     container_name: pvz_api_test
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: cmd/api/Dockerfile
     depends_on:
       postgres-test:
         condition: service_healthy

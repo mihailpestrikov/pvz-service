@@ -4,7 +4,7 @@ services:
     container_name: pvz_api
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/api/Dockerfile
     ports:
       - "8080:8080"
       - "9000:9000"
