@@ -135,3 +135,35 @@ unit-test:
 down:
 	docker-compose -f docker-compose.yml down
 ```
+
+## Пример конфигурации
+```bash
+APP_NAME=pvz-service
+APP_ENV=development # development, production, testing
+APP_PORT=8080
+APP_GRPC_PORT=3000
+APP_PROMETHEUS_PORT=9000
+
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=pvz_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=production_password
+POSTGRES_SSL_MODE=disable
+POSTGRES_MAX_CONNECTIONS=20
+POSTGRES_IDLE_CONNECTIONS=5
+POSTGRES_CONNECTION_LIFETIME=300
+
+JWT_SECRET=very_secure_jwt_secret_key
+JWT_EXPIRATION=24h
+
+LOG_LEVEL=debug  # debug, info, warn, error, fatal, panic
+LOG_FORMAT=console  # json, console
+LOG_OUTPUT=stdout  # stdout, file
+LOG_FILE_PATH=./logs/app.log  # Используется, только если LOG_OUTPUT=file
+
+HTTP_READ_TIMEOUT=5s
+HTTP_WRITE_TIMEOUT=10s
+HTTP_IDLE_TIMEOUT=120s
+DB_QUERY_TIMEOUT=5s
+```
