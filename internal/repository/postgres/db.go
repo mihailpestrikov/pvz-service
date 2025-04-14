@@ -65,10 +65,6 @@ func (db *DB) Close() error {
 	return db.DB.Close()
 }
 
-func (db *DB) WithContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), db.cfg.QueryTimeout)
-}
-
 func (db *DB) BeginTx(ctx context.Context) (*sql.Tx, error) {
 	log.Debug().Msg("Beginning database transaction")
 	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
