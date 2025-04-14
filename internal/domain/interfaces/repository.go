@@ -14,10 +14,6 @@ import (
 по принципу гексагональной архитектуры с портами. Но оба подхода сильно усложнили бы код.
 */
 
-type TxProvider[T any] interface {
-	WithTx(tx *sql.Tx) T
-}
-
 type ProductRepository interface {
 	Create(ctx context.Context, product *models.Product) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.Product, error)
@@ -27,7 +23,7 @@ type ProductRepository interface {
 
 type TxProductRepository interface {
 	ProductRepository
-	TxProvider[ProductRepository]
+	WithTx(tx *sql.Tx) ProductRepository
 }
 
 type ReceptionRepository interface {
@@ -40,7 +36,7 @@ type ReceptionRepository interface {
 
 type TxReceptionRepository interface {
 	ReceptionRepository
-	TxProvider[ReceptionRepository]
+	WithTx(tx *sql.Tx) ReceptionRepository
 }
 
 type PVZRepository interface {
@@ -52,7 +48,7 @@ type PVZRepository interface {
 
 type TxPVZRepository interface {
 	PVZRepository
-	TxProvider[PVZRepository]
+	WithTx(tx *sql.Tx) PVZRepository
 }
 
 type UserRepository interface {
@@ -64,5 +60,5 @@ type UserRepository interface {
 
 type TxUserRepository interface {
 	UserRepository
-	TxProvider[UserRepository]
+	WithTx(tx *sql.Tx) UserRepository
 }
