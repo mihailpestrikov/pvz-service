@@ -136,7 +136,7 @@ down:
 	docker-compose -f docker-compose.yml down
 ```
 
-## Пример конфигурации
+## Пример конфигурации .env
 ```bash
 APP_NAME=pvz-service
 APP_ENV=development # development, production, testing
