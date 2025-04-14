@@ -13,7 +13,7 @@ func (h *Handler) addProduct(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Debug().Err(err).Msg("Invalid request format in addProduct")
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request format"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid product type specified. Available types: electronics, clothes, shoes."})
 		return
 	}
 
@@ -76,5 +76,5 @@ func (h *Handler) deleteLastProduct(c *gin.Context) {
 		Str("pvz_id", pvzID.String()).
 		Msg("Last product deleted successfully")
 
-	c.JSON(http.StatusOK, gin.H{"message": "Последний товар успешно удален"})
+	c.JSON(http.StatusOK, gin.H{"message": "Last product deleted successfully"})
 }

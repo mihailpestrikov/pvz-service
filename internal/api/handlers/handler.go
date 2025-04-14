@@ -4,7 +4,6 @@ import (
 	"avito-backend-trainee-assignment-spring-2025/internal/auth"
 	"avito-backend-trainee-assignment-spring-2025/internal/domain/apperrors"
 	"avito-backend-trainee-assignment-spring-2025/internal/repository/repoerrors"
-	"avito-backend-trainee-assignment-spring-2025/internal/services"
 	"avito-backend-trainee-assignment-spring-2025/pkg/config"
 	"avito-backend-trainee-assignment-spring-2025/pkg/metrics"
 	"errors"
@@ -73,18 +72,18 @@ const (
 )
 
 type Handler struct {
-	userService      *services.UserService
-	pvzService       *services.PVZService
-	receptionService *services.ReceptionService
-	productService   *services.ProductService
+	userService      UserServiceInterface
+	pvzService       PVZServiceInterface
+	receptionService ReceptionServiceInterface
+	productService   ProductServiceInterface
 	config           *config.Config
 }
 
 func NewHandler(
-	userService *services.UserService,
-	pvzService *services.PVZService,
-	receptionService *services.ReceptionService,
-	productService *services.ProductService,
+	userService UserServiceInterface,
+	pvzService PVZServiceInterface,
+	receptionService ReceptionServiceInterface,
+	productService ProductServiceInterface,
 	config *config.Config,
 ) *Handler {
 	return &Handler{
@@ -100,6 +99,10 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	gin.SetMode(h.config.Server.GinMode)
 
 	router := gin.New()
+
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
@@ -137,10 +140,9 @@ func getUserFriendlyError(err error) string {
 		return friendlyMsg
 	}
 
-	var unwrappedErr error
-	if errors.As(err, &unwrappedErr) {
-		if friendlyMsg, exists := userFriendlyErrors[unwrappedErr]; exists {
-			return friendlyMsg
+	for wrappedErr, msg := range userFriendlyErrors {
+		if errors.Is(err, wrappedErr) {
+			return msg
 		}
 	}
 
@@ -152,12 +154,12 @@ func getErrorResponse(err error) (int, string) {
 
 	if code, exists := errorStatusCodes[err]; exists {
 		statusCode = code
-	}
-
-	var unwrappedErr error
-	if errors.As(err, &unwrappedErr) {
-		if code, exists := errorStatusCodes[unwrappedErr]; exists {
-			statusCode = code
+	} else {
+		for knownErr, code := range errorStatusCodes {
+			if errors.Is(err, knownErr) {
+				statusCode = code
+				break
+			}
 		}
 	}
 
